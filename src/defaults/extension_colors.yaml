@@ -25,3 +25,7 @@ bz2: bright_yellow
 xz: bright_yellow
 tar: bright_magenta
 jar: bright_green
+
+# Android's actual brand green, using the hex-color support demonstrated
+# above — a nice example of when a named color isn't specific enough.
+apk: A4C639

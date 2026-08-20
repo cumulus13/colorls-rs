@@ -106,6 +106,7 @@ mov: video
 webm: video
 
 exe: executable_file
+apk: executable_file
 msi: executable_file
 dll: executable_file
 so: executable_file

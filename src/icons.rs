@@ -147,6 +147,25 @@ mod tests {
     }
 
     #[test]
+    fn apk_gets_its_own_icon_and_color_not_the_generic_fallback() {
+        let theme = Theme::load(None, false).unwrap();
+        let apk = file_entry("app-release.apk");
+
+        assert_eq!(icon_for(&apk, &theme), "\u{e70e}");
+        assert_ne!(icon_for(&apk, &theme), DEFAULT_FILE_ICON);
+
+        let color = entry_color(&apk, &theme);
+        assert_eq!(
+            color,
+            colored::Color::TrueColor {
+                r: 0xA4,
+                g: 0xC6,
+                b: 0x39
+            }
+        );
+    }
+
+    #[test]
     fn unmapped_extension_falls_back_to_category_color() {
         let theme = Theme::load(None, false).unwrap();
         // .rs has no entry in extension_colors.yaml, so it should fall back
