@@ -1,0 +1,36 @@
+# Default dark theme. Category -> color name.
+# Valid color names: black, red, green, yellow, blue, magenta, cyan, white,
+# bright_black, bright_red, bright_green, bright_yellow, bright_blue,
+# bright_magenta, bright_cyan, bright_white
+dir: bright_cyan
+recognized_file: white
+unrecognized_file: bright_white
+executable_file: bright_green
+dead_link: bright_red
+link_target: bright_white
+symlink: bright_cyan
+config_file: yellow
+document: bright_white
+compressed: bright_red
+image: bright_magenta
+video: bright_magenta
+audio: bright_magenta
+source_code: bright_green
+database: bright_yellow
+git_status_staged: bright_green
+git_status_modified: bright_yellow
+git_status_untracked: bright_red
+git_status_unmerged: bright_red
+git_status_ignored: bright_black
+git_status_none: white
+git_branch: bright_cyan
+permission_read: bright_green
+permission_write: bright_yellow
+permission_execute: bright_red
+permission_none: bright_black
+file_size: bright_green
+report: bright_yellow
+date: bright_blue
+user: bright_magenta
+group: bright_cyan
+tree_branch: bright_black

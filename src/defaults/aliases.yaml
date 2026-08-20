@@ -1,0 +1,114 @@
+# extension (no dot, lowercase) -> color category
+# category must be one of the keys defined in dark_colors.yaml / light_colors.yaml
+rs: source_code
+go: source_code
+py: source_code
+pyc: source_code
+pyw: source_code
+rb: source_code
+js: source_code
+mjs: source_code
+cjs: source_code
+ts: source_code
+tsx: source_code
+jsx: source_code
+java: source_code
+class: source_code
+c: source_code
+h: source_code
+cpp: source_code
+cc: source_code
+cxx: source_code
+hpp: source_code
+cs: source_code
+php: source_code
+pl: source_code
+lua: source_code
+swift: source_code
+kt: source_code
+kts: source_code
+dart: source_code
+r: source_code
+sh: source_code
+bash: source_code
+zsh: source_code
+fish: source_code
+ps1: source_code
+psm1: source_code
+bat: source_code
+cmd: source_code
+html: source_code
+htm: source_code
+css: source_code
+scss: source_code
+sass: source_code
+less: source_code
+vue: source_code
+svelte: source_code
+
+json: config_file
+yaml: config_file
+yml: config_file
+toml: config_file
+xml: config_file
+ini: config_file
+cfg: config_file
+conf: config_file
+env: config_file
+lock: config_file
+
+md: document
+markdown: document
+txt: document
+rst: document
+pdf: document
+doc: document
+docx: document
+xls: document
+xlsx: document
+ppt: document
+pptx: document
+csv: document
+license: document
+
+sql: database
+db: database
+sqlite: database
+sqlite3: database
+
+zip: compressed
+tar: compressed
+gz: compressed
+bz2: compressed
+xz: compressed
+"7z": compressed
+rar: compressed
+jar: compressed
+
+png: image
+jpg: image
+jpeg: image
+gif: image
+bmp: image
+svg: image
+webp: image
+ico: image
+
+mp3: audio
+wav: audio
+flac: audio
+ogg: audio
+
+mp4: video
+mkv: video
+avi: video
+mov: video
+webm: video
+
+exe: executable_file
+msi: executable_file
+dll: executable_file
+so: executable_file
+dylib: executable_file
+a: executable_file
+lib: executable_file

@@ -1,0 +1,42 @@
+[package]
+name = "colorls"
+version = "1.0.1"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Hadi Cahyadi <cumulus13@gmail.com>"]
+description = "A fast, production-ready Rust rewrite of colorls: a beautified ls with icons, colors, git status and tree view."
+license = "MIT"
+repository = "https://github.com/cumulus13/colorls-rs"
+readme = "README.md"
+default-run = "colorls"
+
+[[bin]]
+name = "colorls"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+clap = { version = "=4.5.4", features = ["derive", "wrap_help"] }
+clap-version-flag = "1.0.7"
+clap-color-help = "0.1.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+anyhow = "1.0"
+thiserror = "1.0"
+once_cell = "1.19"
+dirs = "5.0"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+unicode-width = "0.1"
+terminal_size = "0.3"
+colored = "2.1"
+
+indexmap = "=2.2.6"
+
+[target.'cfg(all(unix, not(target_os = "android")))'.dependencies]
+users = "0.11"

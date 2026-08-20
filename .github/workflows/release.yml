@@ -1,0 +1,169 @@
+name: Release
+
+# Triggers on version tags (v1.0.0, v1.2.3-rc1, ...) or manually via the
+# Actions tab (workflow_dispatch requires a `tag` input naming an existing
+# tag to build from, useful for re-running a failed platform leg without
+# cutting a new tag).
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  BIN_NAME: colorls
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---------------------------------------------------------------
+          # Linux, glibc
+          # ---------------------------------------------------------------
+          - { target: x86_64-unknown-linux-gnu,       os: ubuntu-22.04, cross: false }
+          - { target: aarch64-unknown-linux-gnu,      os: ubuntu-22.04, cross: true }
+          - { target: armv7-unknown-linux-gnueabihf,  os: ubuntu-22.04, cross: true } # armv7l (Raspberry Pi 2/3/4 32-bit, etc.)
+          - { target: i686-unknown-linux-gnu,         os: ubuntu-22.04, cross: true }
+
+          # ---------------------------------------------------------------
+          # Linux, musl (fully static — no glibc version to match, good for
+          # Alpine / minimal containers / old kernels)
+          # ---------------------------------------------------------------
+          - { target: x86_64-unknown-linux-musl,      os: ubuntu-22.04, cross: true }
+          - { target: aarch64-unknown-linux-musl,     os: ubuntu-22.04, cross: true }
+          - { target: armv7-unknown-linux-musleabihf, os: ubuntu-22.04, cross: true }
+
+          # ---------------------------------------------------------------
+          # Android / Termux. Termux itself builds and runs standard
+          # `*-linux-android` target binaries (it targets Android's bionic
+          # libc the same as any Android NDK build), so these four cover
+          # both native Android use and `pkg`-style Termux distribution.
+          # ---------------------------------------------------------------
+          - { target: aarch64-linux-android,          os: ubuntu-22.04, cross: true } # arm64 — most phones/tablets since ~2016
+          - { target: armv7-linux-androideabi,        os: ubuntu-22.04, cross: true } # armv7l — older/budget 32-bit devices
+          - { target: i686-linux-android,             os: ubuntu-22.04, cross: true } # x86 emulators / rare x86 tablets
+          - { target: x86_64-linux-android,           os: ubuntu-22.04, cross: true } # x86_64 emulators
+
+          # ---------------------------------------------------------------
+          # macOS
+          # ---------------------------------------------------------------
+          - { target: x86_64-apple-darwin,            os: macos-13,     cross: false } # Intel
+          - { target: aarch64-apple-darwin,           os: macos-14,     cross: false } # Apple Silicon
+
+          # ---------------------------------------------------------------
+          # Windows
+          # ---------------------------------------------------------------
+          - { target: x86_64-pc-windows-msvc,         os: windows-2022, cross: false }
+          - { target: i686-pc-windows-msvc,           os: windows-2022, cross: false }
+          - { target: aarch64-pc-windows-msvc,        os: windows-2022, cross: false } # Surface Pro X / Windows-on-ARM
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (native cargo)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release --locked --target ${{ matrix.target }}
+
+      - name: Package (Unix, incl. Android/Termux)
+        if: ${{ !contains(matrix.target, 'windows') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging="colorls-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          mkdir -p "$staging"
+          cp "target/${{ matrix.target }}/release/${BIN_NAME}" "$staging/"
+          cp README.md LICENSE "$staging/"
+          tar czf "${staging}.tar.gz" "$staging"
+          shasum -a 256 "${staging}.tar.gz" > "${staging}.tar.gz.sha256"
+
+      - name: Package (Windows)
+        if: contains(matrix.target, 'windows')
+        shell: pwsh
+        run: |
+          $staging = "colorls-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $staging | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${env:BIN_NAME}.exe" -Destination $staging
+          Copy-Item README.md,LICENSE -Destination $staging
+          Compress-Archive -Path $staging -DestinationPath "$staging.zip"
+          $hash = (Get-FileHash "$staging.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $staging.zip" | Out-File -Encoding ascii "$staging.zip.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: colorls-${{ matrix.target }}
+          path: |
+            colorls-*.tar.gz
+            colorls-*.tar.gz.sha256
+            colorls-*.zip
+            colorls-*.zip.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Combined checksums
+        working-directory: dist
+        run: cat *.sha256 > SHA256SUMS.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.zip
+            dist/*.zip.sha256
+            dist/SHA256SUMS.txt
