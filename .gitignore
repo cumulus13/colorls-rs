@@ -8,3 +8,9 @@ Cargo.lock.bak
 # Added entries (2 items)
 tmp*
 src/tmp*
+
+# Added entries (1 items)
+target/
+
+# Added entries (1 items)
+gitignore_backup/
