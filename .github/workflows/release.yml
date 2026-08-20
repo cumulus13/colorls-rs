@@ -59,7 +59,7 @@ jobs:
           # ---------------------------------------------------------------
           # macOS
           # ---------------------------------------------------------------
-          - { target: x86_64-apple-darwin,            os: macos-13,     cross: false } # Intel
+          # - { target: x86_64-apple-darwin,            os: macos-13,     cross: false } # Intel
           - { target: aarch64-apple-darwin,           os: macos-14,     cross: false } # Apple Silicon
 
           # ---------------------------------------------------------------
@@ -101,11 +101,11 @@ jobs:
 
       - name: Build (native cargo)
         if: ${{ !matrix.cross }}
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Build (cross)
         if: matrix.cross
-        run: cross build --release --locked --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }}
 
       - name: Package (Unix, incl. Android/Termux)
         if: ${{ !contains(matrix.target, 'windows') }}
