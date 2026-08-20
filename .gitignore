@@ -14,3 +14,8 @@ target/
 
 # Added entries (1 items)
 gitignore_backup/
+
+# Added entries (1 items)
+ghw_errors.txt
+# PT backup directory
+.pt/

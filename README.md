@@ -82,6 +82,7 @@ passwd/group database glibc/musl provide, so there's no name to resolve).
 `--init-config`, git status (`--gs`, if `git` is installed via `pkg install
 git`), and everything else behaves identically to the Linux build.
 
+---
 
 Every build produces **two identical binaries**: `colorls` and `lls`. Same
 code, same flags, same everything — `lls` is just a shorter, collision-free

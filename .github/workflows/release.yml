@@ -184,7 +184,7 @@ jobs:
             dist/*.zip
             dist/*.zip.sha256
             dist/SHA256SUMS.txt
-  
+
   publish:
     name: Publish to crates.io
     needs: [build, release]
