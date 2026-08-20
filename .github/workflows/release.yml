@@ -52,6 +52,9 @@ jobs:
           # `*-linux-android` target binaries (it targets Android's bionic
           # libc the same as any Android NDK build), so these four cover
           # both native Android use and `pkg`-style Termux distribution.
+          # Built via cross's `:edge` images (see Cross.toml) — the
+          # `:0.2.5`-pinned images ship a broken bundled NDK gcc wrapper
+          # that can't find `-lunwind` at link time.
           # ---------------------------------------------------------------
           - { target: aarch64-linux-android,          os: ubuntu-22.04, cross: true } # arm64 — most phones/tablets since ~2016
           - { target: armv7-linux-androideabi,        os: ubuntu-22.04, cross: true } # armv7l — older/budget 32-bit devices
