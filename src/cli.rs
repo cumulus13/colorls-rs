@@ -6,6 +6,7 @@
 
 use clap::{ArgAction, Parser, ValueEnum};
 use clap_color_help::default_styles;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ColorWhen {
