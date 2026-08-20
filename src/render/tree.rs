@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::cli::Cli;
 use crate::entry::{read_dir_entries, FileEntry};
 use crate::git::GitRepoInfo;
-use crate::icons::{icon_for, resolved_category};
+use crate::icons::{entry_color, icon_for};
 use crate::render::RenderCtx;
 use crate::sorter::sort_entries;
 
@@ -41,7 +41,12 @@ fn walk(
     let mut entries: Vec<FileEntry> = match read_dir_entries(dir) {
         Ok(e) => e,
         Err(e) => {
-            eprintln!("colorls: {}: {}", dir.display(), e);
+            eprintln!(
+                "{}: {}: {}",
+                crate::util::PROG_NAME.as_str(),
+                dir.display(),
+                e
+            );
             return;
         }
     };
@@ -72,8 +77,8 @@ fn walk(
             label.push_str(&target.to_string_lossy());
         }
 
-        let category = resolved_category(entry, ctx.theme);
-        let colored_label = crate::colors::paint(&label, &category, ctx.theme, ctx.color_enabled);
+        let color = entry_color(entry, ctx.theme);
+        let colored_label = crate::colors::paint_color(&label, color, ctx.color_enabled);
 
         let git_glyph = if cli.git_status {
             let status = git.map(|g| g.status_for(&entry.path));

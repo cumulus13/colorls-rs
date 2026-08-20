@@ -1,3 +1,5 @@
+# Default light theme. Category -> color name (see dark_colors.yaml for
+# the full list of named colors and hex-color syntax notes).
 dir: blue
 recognized_file: black
 unrecognized_file: black

@@ -63,23 +63,7 @@ pub fn status_for_dir(dir: &Path) -> Option<GitRepoInfo> {
         return None;
     }
 
-    let branch_out = Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(dir)
-        .output()
-        .ok();
-    let branch = branch_out.and_then(|o| {
-        if o.status.success() {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() || s == "HEAD" {
-                None
-            } else {
-                Some(s)
-            }
-        } else {
-            None
-        }
-    });
+    let branch = resolve_branch(dir);
 
     let status_out = Command::new("git")
         .args(["status", "--porcelain=v1", "--ignored"])
@@ -130,6 +114,43 @@ pub fn status_for_dir(dir: &Path) -> Option<GitRepoInfo> {
     }
 
     Some(GitRepoInfo { branch, status })
+}
+
+/// Resolve the current branch name. `git rev-parse --abbrev-ref HEAD`
+/// alone fails on a brand-new repo with no commits yet (HEAD points at an
+/// unborn branch), returning the literal string "HEAD" with a non-zero
+/// exit code — so try the symbolic ref first (works even pre-first-commit),
+/// and fall back to rev-parse for a genuinely detached HEAD.
+fn resolve_branch(dir: &Path) -> Option<String> {
+    let symbolic = Command::new("git")
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .current_dir(dir)
+        .output()
+        .ok();
+    if let Some(o) = symbolic {
+        if o.status.success() {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if !s.is_empty() {
+                return Some(s);
+            }
+        }
+    }
+
+    // Detached HEAD: fall back to a short commit hash rather than nothing.
+    let rev = Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !rev.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&rev.stdout).trim().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(format!("({})", s))
+    }
 }
 
 fn classify(index: char, worktree: char) -> GitStatus {

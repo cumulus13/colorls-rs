@@ -1,6 +1,6 @@
 [package]
 name = "colorls"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 rust-version = "1.75"
 authors = ["Hadi Cahyadi <cumulus13@gmail.com>"]
@@ -12,6 +12,15 @@ default-run = "colorls"
 
 [[bin]]
 name = "colorls"
+path = "src/main.rs"
+
+# Second entry point for the same binary. Some Windows setups already have
+# an old Ruby `colorls`/`colorls.bat` on PATH (see README) — `lls` gives a
+# collision-free short alias without needing PATH surgery. Both names
+# adapt their own --help/--version output to whichever one was invoked
+# (see `parse_cli()` in main.rs), so this isn't just a symlink-in-disguise.
+[[bin]]
+name = "lls"
 path = "src/main.rs"
 
 [profile.release]

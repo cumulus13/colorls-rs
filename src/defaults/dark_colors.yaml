@@ -2,6 +2,8 @@
 # Valid color names: black, red, green, yellow, blue, magenta, cyan, white,
 # bright_black, bright_red, bright_green, bright_yellow, bright_blue,
 # bright_magenta, bright_cyan, bright_white
+# ...or a 24-bit hex color: FF8800 (or "#FF8800" quoted — an unquoted `#`
+# starts a YAML comment, so bare hex without the `#` is the safer form).
 dir: bright_cyan
 recognized_file: white
 unrecognized_file: bright_white

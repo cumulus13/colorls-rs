@@ -1,5 +1,5 @@
 use crate::entry::FileEntry;
-use crate::icons::{icon_for, resolved_category};
+use crate::icons::{entry_color, icon_for};
 use crate::render::RenderCtx;
 use crate::util::{format_time, human_size};
 
@@ -171,8 +171,8 @@ pub fn render(entries: &[FileEntry], ctx: &RenderCtx) {
             label.push_str(&target.to_string_lossy());
         }
 
-        let category = resolved_category(entry, ctx.theme);
-        let colored_label = crate::colors::paint(&label, &category, ctx.theme, ctx.color_enabled);
+        let color = entry_color(entry, ctx.theme);
+        let colored_label = crate::colors::paint_color(&label, color, ctx.color_enabled);
 
         let git_col = match ctx.git_status_glyph(&entry.path) {
             Some(g) => format!("{} ", g),

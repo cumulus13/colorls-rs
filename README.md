@@ -87,22 +87,30 @@ cross build --release --target aarch64-linux-android
 
 ## Install
 
-Copy `target/release/colorls` (or `colorls.exe`) anywhere on `PATH`. There
-is no installer and no required config — it works with sane defaults out of
-the box. To alias it over the real `ls`/`dir`, add to your shell profile:
+Every build produces **two identical binaries**: `colorls` and `lls`. Same
+code, same flags, same everything — `lls` is just a shorter, collision-free
+name for the common case of an old Ruby `colorls`/`colorls.bat` already
+sitting on `PATH` (as e.g. `where colorls` on Windows would show if you've
+ever `gem install colorls`'d). `--help`/`--version` on each reports its own
+name, not the other one's.
+
+Copy `target/release/colorls` and/or `target/release/lls` (`.exe` on
+Windows) anywhere on `PATH`. There is no installer and no required config —
+it works with sane defaults out of the box. To alias it over the real
+`ls`/`dir`, add to your shell profile:
 
 ```sh
-alias ls='colorls'
-alias ll='colorls -l'
-alias la='colorls -a'
-alias lt='colorls --tree'
+alias ls='lls'
+alias ll='lls -l'
+alias la='lls -a'
+alias lt='lls --tree'
 ```
 
 On Windows (PowerShell profile):
 
 ```powershell
-function ls { colorls @args }
-function ll { colorls -l @args }
+function ls { lls @args }
+function ll { lls -l @args }
 ```
 
 ## Usage
@@ -118,7 +126,7 @@ colorls [OPTIONS] [PATHS]...
 | `-l`, `--long` | long listing: permissions, owner, size, date |
 | `-1`, `--oneline` | one entry per line |
 | `--tree[=N]` | tree view, default depth 3 |
-| `--gs`, `--git-status` | show per-entry git status column |
+| `--gs`, `--git-status` | show per-entry git status column, plus a branch header above the listing |
 | `--sd`, `--group-directories-first` | directories before files |
 | `--sf`, `--sort-files` | files before directories |
 | `-t` | sort by modification time, newest first |
@@ -162,7 +170,7 @@ Run once to scaffold it:
 colorls --init-config
 ```
 
-This writes seven files (only the ones missing — existing files are never
+This writes eight files (only the ones missing — existing files are never
 overwritten):
 
 | File | Purpose |
@@ -173,6 +181,7 @@ overwritten):
 | `filenames.yaml` | exact filename (e.g. `dockerfile`, `readme.md`) → glyph, takes priority over extension |
 | `folders.yaml` | folder name (e.g. `node_modules`, `.git`) → glyph |
 | `aliases.yaml` | file extension → color category (`source_code`, `image`, `document`, ...) |
+| `extension_colors.yaml` | file extension → color name **directly**, highest priority (see below) |
 
 Any key you add to these files overrides the built-in default for that key
 only — you don't need to redefine everything, just the entries you want to
@@ -189,6 +198,54 @@ or simpler, just recolor an entire category in `dark_colors.yaml`:
 ```yaml
 source_code: bright_red
 ```
+
+### Coloring one specific extension without touching its whole category
+
+`aliases.yaml` + `dark_colors.yaml`/`light_colors.yaml` color by *category*
+(all "compressed" files share one color, all "source_code" files share
+another). If you want a single extension to have its own color without
+inventing a whole new category, use `extension_colors.yaml` instead — it's
+checked first, before category resolution even runs:
+
+```yaml
+# ~/.config/colorls/extension_colors.yaml
+zip: bright_red
+jar: bright_green
+bz2: bright_yellow
+gz: yellow
+log: bright_black
+```
+
+This is exactly how the built-in defaults keep archive formats visually
+distinct from each other out of the box (`.zip`/`.rar`/`.7z` red, `.gz`/
+`.bz2`/`.xz` yellow, `.tar` magenta, `.jar` green) instead of every archive
+type sharing the single "compressed" category color. Any extension not
+listed here just falls back to its category color as usual.
+
+### Hex colors
+
+Anywhere a color name is accepted — `dark_colors.yaml`, `light_colors.yaml`,
+and `extension_colors.yaml` — you can use a 24-bit hex color instead of a
+named one:
+
+```yaml
+# ~/.config/colorls/extension_colors.yaml
+zip: FF8800        # bare hex — recommended, see gotcha below
+jar: "#00FF88"      # quoted hex also works
+log: "#666"          # 3-digit shorthand, quoted (each digit doubled: 666 -> 666666)
+```
+
+**YAML gotcha:** an *unquoted* `#` starts a comment, so `zip: #FF0000`
+silently parses as an empty value, not the color you meant — colorls will
+warn you about exactly this (without crashing or discarding the rest of
+the file) if it happens. Either quote the value (`zip: "#FF0000"`) or drop
+the `#` entirely (`zip: FF0000`); both are treated identically.
+
+Hex colors render as true 24-bit color on terminals that advertise
+`COLORTERM=truecolor` (most modern terminals — Windows Terminal, iTerm2,
+GNOME Terminal, kitty, alacritty, ...) and automatically degrade to the
+nearest of the 16 named colors otherwise, so they still look reasonable
+on older terminals instead of breaking.
 
 `config.yaml` example:
 

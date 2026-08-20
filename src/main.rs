@@ -1,7 +1,7 @@
 //! File: src\main.rs
 //! Author: Hadi Cahyadi <cumulus13@gmail.com>
 //! Date: 2026-08-20
-//! Description: 
+//! Description:
 //! License: MIT
 
 mod cli;
@@ -19,13 +19,28 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches};
 use clap_version_flag::colorful_version;
 use cli::{Cli, ColorWhen};
 use entry::{read_dir_entries, FileEntry};
 use git::{git_available, status_for_dir, GitRepoInfo};
 use render::RenderCtx;
 use theme::{init_config_dir, Theme};
+use util::PROG_NAME;
+
+/// Parse CLI args with the `Command`'s name/bin_name set to whichever
+/// executable name we were actually invoked as (`colorls` or `lls`), so
+/// `--help` and `--version` reflect that instead of always saying
+/// "colorls" regardless of how the user launched it.
+fn parse_cli() -> Cli {
+    let name = PROG_NAME.as_str();
+    let cmd = Cli::command().name(name).bin_name(name);
+    let matches = cmd.get_matches();
+    match Cli::from_arg_matches(&matches) {
+        Ok(cli) => cli,
+        Err(e) => e.exit(),
+    }
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
@@ -39,12 +54,12 @@ fn main() -> ExitCode {
         let _ = colored::control::set_virtual_terminal(true);
     }
 
-    let cli = Cli::parse();
+    let cli = parse_cli();
 
     match run(cli) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("colorls: error: {:#}", e);
+            eprintln!("{}: error: {:#}", PROG_NAME.as_str(), e);
             ExitCode::FAILURE
         }
     }
@@ -69,11 +84,16 @@ fn run(mut cli: Cli) -> Result<ExitCode> {
         let written = init_config_dir(&dir)?;
         if written.is_empty() {
             crate::oprintln!(
-                "colorls: config already present at {} (nothing overwritten)",
+                "{}: config already present at {} (nothing overwritten)",
+                PROG_NAME.as_str(),
                 dir.display()
             );
         } else {
-            crate::oprintln!("colorls: wrote default config to {}", dir.display());
+            crate::oprintln!(
+                "{}: wrote default config to {}",
+                PROG_NAME.as_str(),
+                dir.display()
+            );
             for f in written {
                 crate::oprintln!("  {}", f);
             }
@@ -109,10 +129,14 @@ fn run(mut cli: Cli) -> Result<ExitCode> {
     if !cli.long {
         cli.long = settings.long.unwrap_or(false);
     }
-    if cli.tree.is_none() {
-        // config.yaml's tree_depth only ever applies as the *default depth*
-        // for a bare `--tree` flag, which clap already resolves via
-        // `default_missing_value`. Nothing further to layer here.
+    if let Some(depth) = cli.tree {
+        // `0` is clap's sentinel for "bare `--tree` with no explicit
+        // depth" (see cli.rs) — resolve it against config.yaml's
+        // `tree_depth`, falling back to 3 if that's unset too. An
+        // explicit `--tree=N` from the user always wins outright.
+        if depth == 0 {
+            cli.tree = Some(settings.tree_depth.unwrap_or(3).max(1));
+        }
     }
 
     let icons_enabled = if cli.no_icons {
@@ -161,7 +185,7 @@ fn run(mut cli: Cli) -> Result<ExitCode> {
             icons_enabled,
             show_headers,
         ) {
-            eprintln!("colorls: {}: {:#}", path.display(), e);
+            eprintln!("{}: {}: {:#}", PROG_NAME.as_str(), path.display(), e);
             any_error = true;
         }
     }
@@ -188,7 +212,10 @@ fn list_one(
     let git_available_flag = if cli.git_status {
         let avail = git_available();
         if !avail && !cli.quiet {
-            eprintln!("colorls: warning: `git` executable not found; --gs disabled");
+            eprintln!(
+                "{}: warning: `git` executable not found; --gs disabled",
+                PROG_NAME.as_str()
+            );
         }
         avail
     } else {
@@ -213,6 +240,18 @@ fn list_one(
         icons_enabled,
         git: git_info.as_ref(),
     };
+
+    if let Some(info) = &git_info {
+        if let Some(branch) = &info.branch {
+            let text = if icons_enabled {
+                format!("\u{e0a0} {}", branch)
+            } else {
+                branch.clone()
+            };
+            let label = crate::colors::paint(&text, "git_branch", theme, color_enabled);
+            crate::oprintln!("{}", label);
+        }
+    }
 
     if path.is_file() {
         if show_headers {

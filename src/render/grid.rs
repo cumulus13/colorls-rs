@@ -1,5 +1,5 @@
 use crate::entry::FileEntry;
-use crate::icons::{icon_for, resolved_category};
+use crate::icons::{entry_color, icon_for};
 use crate::render::RenderCtx;
 use crate::util::{display_width, terminal_width};
 
@@ -22,8 +22,8 @@ fn build_cell(entry: &FileEntry, ctx: &RenderCtx) -> Cell {
         label.push('/');
     }
 
-    let category = resolved_category(entry, ctx.theme);
-    let colored_label = crate::colors::paint(&label, &category, ctx.theme, ctx.color_enabled);
+    let color = entry_color(entry, ctx.theme);
+    let colored_label = crate::colors::paint_color(&label, color, ctx.color_enabled);
 
     let git = ctx.git_status_glyph(&entry.path);
     let git_raw_width = if ctx.cli.git_status { 2 } else { 0 };

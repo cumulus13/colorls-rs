@@ -1,6 +1,25 @@
 use std::io::Write;
 use std::time::SystemTime;
 
+use once_cell::sync::Lazy;
+
+/// The name this binary was actually invoked as (`colorls` or `lls`),
+/// derived from argv[0]. Both names build from the same binary (see
+/// Cargo.toml's two `[[bin]]` entries), so `--help`, `--version`, and
+/// every warning/error message adapt to whichever one the user actually
+/// ran instead of always saying "colorls".
+pub static PROG_NAME: Lazy<String> = Lazy::new(|| {
+    std::env::args_os()
+        .next()
+        .and_then(|p| {
+            std::path::Path::new(&p)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "colorls".to_string())
+});
+
 /// Write a line to stdout, exiting quietly (code 0) on a broken pipe (e.g.
 /// `colorls | head`) instead of panicking the way a bare `println!` would.
 /// Any other write failure is reported and exits with a failure code.
@@ -11,7 +30,7 @@ pub fn safe_println(s: &str) {
         if e.kind() == std::io::ErrorKind::BrokenPipe {
             std::process::exit(0);
         }
-        eprintln!("colorls: error writing output: {}", e);
+        eprintln!("{}: error writing output: {}", PROG_NAME.as_str(), e);
         std::process::exit(1);
     }
 }

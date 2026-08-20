@@ -1,12 +1,12 @@
 // File: src\cli.rs
 // Author: Hadi Cahyadi <cumulus13@gmail.com>
 // Date: 2026-08-20
-// Description: 
+// Description:
 // License: MIT
 
-use std::path::PathBuf;
-use clap_color_help::default_styles;
 use clap::{ArgAction, Parser, ValueEnum};
+use clap_color_help::default_styles;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ColorWhen {
@@ -26,8 +26,13 @@ pub enum SortBy {
 
 /// A fast, production-ready rewrite of `colorls`: a beautified `ls` with
 /// nerd-font icons, colors, git status and a tree view.
+///
+/// Deliberately no `name`/`bin_name` override here: this binary ships as
+/// both `colorls` and `lls` (see Cargo.toml), and `--help`/`--version`
+/// should reflect whichever one was actually invoked. `parse_cli()` in
+/// main.rs sets both dynamically from argv[0] before parsing.
 #[derive(Debug, Parser)]
-#[command(name = "colorls", bin_name = "colorls", version, about, long_about = None, styles=default_styles())]
+#[command(version, about, long_about = None, styles=default_styles())]
 pub struct Cli {
     /// Files and/or directories to list. Defaults to the current directory.
     pub paths: Vec<PathBuf>,
@@ -48,8 +53,9 @@ pub struct Cli {
     #[arg(short = '1', long = "oneline")]
     pub oneline: bool,
 
-    /// Show a tree view. Optionally pass a max depth (default 3).
-    #[arg(long = "tree", num_args = 0..=1, default_missing_value = "3")]
+    /// Show a tree view. Optionally pass a max depth (default from
+    /// config.yaml's `tree_depth`, or 3 if unset).
+    #[arg(long = "tree", num_args = 0..=1, default_missing_value = "0")]
     pub tree: Option<usize>,
 
     /// Show per-entry git status (requires the entry to be inside a git

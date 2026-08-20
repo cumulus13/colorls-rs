@@ -1,0 +1,27 @@
+# Per-extension color overrides. These take priority over the broader
+# category coloring in aliases.yaml + dark_colors.yaml/light_colors.yaml,
+# so you can give individual extensions their own color without having to
+# invent a whole new category.
+#
+# Value can be either a named color (same names as dark_colors.yaml /
+# light_colors.yaml, e.g. bright_red) OR a 24-bit hex color: FF8800 or
+# "#FF8800" (quoted!) or the 3-digit shorthand "#F80".
+#
+# IMPORTANT YAML gotcha: an *unquoted* `#` starts a comment, so
+#   zip: #FF0000
+# silently parses as an empty value, not the color you wanted. Either quote
+# it (zip: "#FF0000") or just drop the `#` (zip: FF0000) — colorls accepts
+# hex with or without the leading `#`, and warns (without crashing) if it
+# ever sees the unquoted-comment form.
+#
+# Archive formats default to a few different colors out of the box (rather
+# than all sharing the single "compressed" category color) specifically so
+# .zip/.jar/.bz2/etc. are visually distinguishable at a glance:
+zip: bright_red
+rar: bright_red
+"7z": bright_red
+gz: bright_yellow
+bz2: bright_yellow
+xz: bright_yellow
+tar: bright_magenta
+jar: bright_green
