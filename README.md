@@ -28,6 +28,39 @@ prebuilt archives, or build from source for anything not listed (any target
 `unsafe`/FFI beyond standard library and `users`/`colored`, both of which
 are cross-platform).
 
+## Install
+
+### Cargo
+
+```bash
+$ cargo install colorls
+```
+
+### Build from source
+
+Requires Rust 1.75+ (matches the toolchain used for the project's other
+Rust tools). `cargo build` alone works — no native system libraries are
+required (git status is invoked via `git` on `PATH` at runtime, not linked).
+
+```sh
+cd colorls-rs
+cargo build --release
+# binary at target/release/colorls (colorls.exe on Windows)
+```
+
+Cross-compiling for another target locally (with the target installed via
+rustup, or via [`cross`](https://github.com/cross-rs/cross) for targets
+that need a foreign C toolchain, e.g. Android or musl/ARM):
+
+```sh
+rustup target add aarch64-unknown-linux-gnu
+cargo build --release --target aarch64-unknown-linux-gnu
+
+# or, for targets needing a cross-toolchain (Android, musl, ARM, ...):
+cargo install cross --git https://github.com/cross-rs/cross
+cross build --release --target aarch64-linux-android
+```
+
 ### Termux (Android)
 
 Termux runs standard Android NDK (`*-linux-android`) binaries directly,
@@ -49,43 +82,6 @@ passwd/group database glibc/musl provide, so there's no name to resolve).
 `--init-config`, git status (`--gs`, if `git` is installed via `pkg install
 git`), and everything else behaves identically to the Linux build.
 
-## Build
-
-Requires Rust 1.75+ (matches the toolchain used for the project's other
-Rust tools). `cargo build` alone works — no native system libraries are
-required (git status is invoked via `git` on `PATH` at runtime, not linked).
-
-```sh
-cargo build --release
-# binary at target/release/colorls (colorls.exe on Windows)
-```
-
-Cross-compiling for another target locally (with the target installed via
-rustup, or via [`cross`](https://github.com/cross-rs/cross) for targets
-that need a foreign C toolchain, e.g. Android or musl/ARM):
-
-```sh
-rustup target add aarch64-unknown-linux-gnu
-cargo build --release --target aarch64-unknown-linux-gnu
-
-# or, for targets needing a cross-toolchain (Android, musl, ARM, ...):
-cargo install cross --git https://github.com/cross-rs/cross
-cross build --release --target aarch64-linux-android
-```
-
-### CI / releases
-
-- `.github/workflows/ci.yml` — runs `fmt`, `clippy -D warnings`, `build`,
-  and `test` on Linux/macOS/Windows for every push and PR.
-- `.github/workflows/release.yml` — on every `vX.Y.Z` tag push, builds the
-  full platform matrix above (native `cargo` for Linux x86_64/macOS/Windows,
-  [`cross`](https://github.com/cross-rs/cross) via Docker for every other
-  target, including all four Android/Termux ABIs), packages each as a
-  checksummed `.tar.gz`/`.zip`, and publishes them to a GitHub Release.
-  Can also be triggered manually (`workflow_dispatch`) against an existing
-  tag, to re-run a single failed platform leg without cutting a new tag.
-
-## Install
 
 Every build produces **two identical binaries**: `colorls` and `lls`. Same
 code, same flags, same everything — `lls` is just a shorter, collision-free
@@ -197,6 +193,8 @@ or simpler, just recolor an entire category in `dark_colors.yaml`:
 
 ```yaml
 source_code: bright_red
+dir: "#00FFFF"
+document: FFFF00
 ```
 
 ### Coloring one specific extension without touching its whole category
@@ -214,6 +212,8 @@ jar: bright_green
 bz2: bright_yellow
 gz: yellow
 log: bright_black
+7z: "#FF5500"
+rar: 00AAFF
 ```
 
 This is exactly how the built-in defaults keep archive formats visually
