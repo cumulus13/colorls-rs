@@ -140,12 +140,50 @@ colorls [OPTIONS] [PATHS]...
 | `--print-config-dir` | print the resolved config directory and exit |
 | `-q`, `--quiet` | suppress non-fatal warnings |
 | `-v`, `-vv` | increase verbosity |
+| `-p`, `--paginate` | page output through `$PAGER` (or `less -R`), preserving color |
 
 Run `colorls --help` for the full, always-up-to-date list.
 
 **Nerd Font required for icons.** If your terminal font doesn't include
 [Nerd Font](https://www.nerdfonts.com/) glyphs, icons render as boxes/`?`.
 Either install a Nerd Font, or run with `--no-icons`.
+
+## Piping and paging colored output
+
+By default, `colorls`/`lls` disables color whenever stdout isn't a
+terminal — same convention as `ls --color=auto`, `grep --color=auto`, etc.
+So `lls -rt | more` showing no color is expected, not a bug: `more`
+(especially the classic Windows `more.com`) doesn't understand ANSI color
+codes at all, and even tools that do (like `less`) will show the raw
+`^[[92m...` escape sequences as garbage text instead of color unless told
+to interpret them.
+
+Two ways to get colored output through a pipe:
+
+**`-p` / `--paginate` (recommended)** — spawns `$PAGER` (or `less -R` if
+`$PAGER` isn't set) itself, forces color on for it specifically, and pages
+interactively:
+
+```sh
+lls -rt -p
+```
+
+If no usable pager is found on `PATH` (common on a bare Windows install
+without `less.exe`), it prints a one-line warning and falls back to plain
+output rather than risking unreadable escape-code garbage.
+
+**Manual piping** — if you'd rather manage your own pager pipeline, force
+color explicitly and make sure your pager is told to interpret raw control
+characters:
+
+```sh
+lls -rt --color=always | less -R
+```
+
+Do **not** pipe `--color=always` output into `more` (or `less` without
+`-R`) — both will show literal escape codes instead of color, which is
+exactly what "chaos" looks like. `-p`/`--paginate` avoids this entirely by
+using `less -R` as its own default.
 
 ## Configuration
 
@@ -242,11 +280,16 @@ warn you about exactly this (without crashing or discarding the rest of
 the file) if it happens. Either quote the value (`zip: "#FF0000"`) or drop
 the `#` entirely (`zip: FF0000`); both are treated identically.
 
-Hex colors render as true 24-bit color on terminals that advertise
-`COLORTERM=truecolor` (most modern terminals — Windows Terminal, iTerm2,
-GNOME Terminal, kitty, alacritty, ...) and automatically degrade to the
-nearest of the 16 named colors otherwise, so they still look reasonable
-on older terminals instead of breaking.
+Hex colors always render as exact true 24-bit color (`\e[38;2;r;g;bm`)
+wherever the terminal honors 24-bit ANSI — which is effectively every
+terminal still receiving updates in 2026. Unlike most tools that check the
+`COLORTERM` environment variable and silently substitute the nearest of 16
+named colors when it's absent, colorls does **not** do that downgrade for
+explicitly-configured hex colors: `COLORTERM` is an unreliable signal in
+practice (frequently missing over SSH, in tmux, or other passthrough
+shells even when the terminal displaying the output supports truecolor
+fine), and a color you explicitly typed as hex should render as exactly
+that color, not a guess.
 
 `config.yaml` example:
 
@@ -282,6 +325,12 @@ when both are given, so `config.yaml` only sets your personal defaults.
   silently overridden by the crate's own auto-detection.
 - **Owner/group** columns are populated on Unix via the `users` crate and
   show `-` on Windows, which has no equivalent POSIX uid/gid concept.
+- **`-p`/`--paginate`** redirects all output through a spawned pager's
+  stdin pipe instead of real stdout (see `util::init_output_writer` /
+  `close_output` in `src/util.rs`), and upgrades `--color=auto` to
+  `--color=always` for the duration — since the destination is no longer
+  the terminal directly, plain TTY detection would otherwise (correctly,
+  in isolation) strip color right before it reaches the pager.
 
 ---
 

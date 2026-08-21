@@ -136,6 +136,16 @@ pub struct Cli {
     /// Increase verbosity (repeatable: -v, -vv).
     #[arg(short = 'v', long = "verbose", action = ArgAction::Count)]
     pub verbose: u8,
+
+    /// Page output through `$PAGER` (or `less -R` if unset), so long
+    /// listings stay readable — and colored — instead of scrolling past.
+    /// Implies color (as if `--color=always`) unless `--color=never` was
+    /// also given, since the destination becomes the pager's input rather
+    /// than the terminal directly, and the whole point is to preserve
+    /// color through it. Falls back to printing directly if no usable
+    /// pager is found on PATH.
+    #[arg(short = 'p', long = "paginate")]
+    pub paginate: bool,
 }
 
 impl Cli {

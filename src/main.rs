@@ -54,13 +54,88 @@ fn main() -> ExitCode {
         let _ = colored::control::set_virtual_terminal(true);
     }
 
-    let cli = parse_cli();
+    let mut cli = parse_cli();
+    let pager = setup_pager(&mut cli);
 
-    match run(cli) {
+    let result = run(cli);
+
+    // Close the pipe into the pager (sends it EOF) before waiting on it —
+    // otherwise it hangs forever expecting more input. If no pager was
+    // spawned this is a harmless no-op.
+    util::close_output();
+    if let Some(mut child) = pager {
+        let _ = child.wait();
+    }
+
+    match result {
         Ok(code) => code,
         Err(e) => {
             eprintln!("{}: error: {:#}", PROG_NAME.as_str(), e);
             ExitCode::FAILURE
+        }
+    }
+}
+
+/// Once a pager is spawned, output is headed into its stdin pipe rather
+/// than the terminal directly — so plain TTY auto-detection on our own
+/// stdout would (correctly, in isolation) conclude "not a terminal, no
+/// color". Upgrade `Auto` to `Always` to counter that, since the whole
+/// point of `--paginate` is to preserve color through the pager. An
+/// explicit `--color=never` is a deliberate choice and always wins.
+fn color_for_pager(current: ColorWhen) -> ColorWhen {
+    if current == ColorWhen::Never {
+        current
+    } else {
+        ColorWhen::Always
+    }
+}
+
+/// If `--paginate`/`-p` was requested, spawn a pager (`$PAGER`, or
+/// `less -R` if that's unset) with its stdin piped, and redirect all
+/// subsequent `oprintln!` output into that pipe instead of real stdout
+/// (see `util::init_output_writer`). Also upgrades `cli.color` to
+/// `Always` unless the user explicitly said `--color=never`, since once
+/// output is headed into a pager rather than the terminal directly, plain
+/// TTY auto-detection on our own stdout would (correctly, in isolation)
+/// conclude "not a terminal, no color" — exactly the "color disappears
+/// when piped" behavior this flag exists to fix.
+///
+/// Returns `None` — leaving output on real stdout, with `cli.color`
+/// untouched — both when paginate wasn't requested, and when it was but
+/// no usable pager could be launched (e.g. `less` isn't on PATH, common on
+/// a bare Windows install); the latter prints a one-line warning and
+/// degrades to plain unpaginated output rather than risking a pager that
+/// can't interpret ANSI codes turning colored output into visible escape-
+/// sequence garbage.
+fn setup_pager(cli: &mut Cli) -> Option<std::process::Child> {
+    if !cli.paginate {
+        return None;
+    }
+
+    let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| "less -R".to_string());
+    let mut parts = pager_cmd.split_whitespace();
+    let prog = parts.next()?;
+    let args: Vec<&str> = parts.collect();
+
+    match std::process::Command::new(prog)
+        .args(&args)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(mut child) => {
+            let stdin = child.stdin.take()?;
+            util::init_output_writer(Box::new(stdin));
+            cli.color = color_for_pager(cli.color);
+            Some(child)
+        }
+        Err(e) => {
+            eprintln!(
+                "{}: warning: couldn't launch pager `{}` ({}); printing directly instead",
+                PROG_NAME.as_str(),
+                pager_cmd,
+                e
+            );
+            None
         }
     }
 }
@@ -375,4 +450,26 @@ fn print_report(entries: &[FileEntry], theme: &Theme, color_enabled: bool) {
         "{}",
         crate::colors::paint(&line, "report", theme, color_enabled)
     );
+}
+
+#[cfg(test)]
+mod pager_tests {
+    use super::*;
+
+    #[test]
+    fn auto_upgrades_to_always_for_pager() {
+        assert_eq!(color_for_pager(ColorWhen::Auto), ColorWhen::Always);
+    }
+
+    #[test]
+    fn always_stays_always_for_pager() {
+        assert_eq!(color_for_pager(ColorWhen::Always), ColorWhen::Always);
+    }
+
+    #[test]
+    fn explicit_never_is_preserved_for_pager() {
+        // The one case that must NOT be overridden: the user explicitly
+        // opted out of color, even while paginating.
+        assert_eq!(color_for_pager(ColorWhen::Never), ColorWhen::Never);
+    }
 }

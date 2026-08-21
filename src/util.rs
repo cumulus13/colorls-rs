@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 use once_cell::sync::Lazy;
@@ -20,19 +21,60 @@ pub static PROG_NAME: Lazy<String> = Lazy::new(|| {
         .unwrap_or_else(|| "colorls".to_string())
 });
 
-/// Write a line to stdout, exiting quietly (code 0) on a broken pipe (e.g.
-/// `colorls | head`) instead of panicking the way a bare `println!` would.
-/// Any other write failure is reported and exits with a failure code.
+/// Where `safe_println` writes to. Normally unset (falls back to real
+/// stdout directly). When `--paginate`/`-p` spawns a pager, this is set to
+/// the pager child process's stdin pipe instead, so every line renders
+/// straight into the pager rather than the terminal — see
+/// `main::setup_output`. A `Mutex<Option<..>>` (rather than something set
+/// permanently once) specifically so `close_output()` can `take()` and
+/// drop the writer to close the pipe and send the pager EOF once
+/// rendering is done, instead of hanging forever waiting for more input.
+static OUTPUT: Lazy<Mutex<Option<Box<dyn Write + Send>>>> = Lazy::new(|| Mutex::new(None));
+
+/// Redirect all subsequent `safe_println` output through `writer` instead
+/// of directly to stdout.
+pub fn init_output_writer(writer: Box<dyn Write + Send>) {
+    *OUTPUT.lock().unwrap() = Some(writer);
+}
+
+/// Drop the redirected writer (if any), flushing and closing it. Must be
+/// called before waiting on a spawned pager's exit, or it will hang
+/// forever waiting for EOF on a pipe we're still holding open.
+pub fn close_output() {
+    if let Some(mut w) = OUTPUT.lock().unwrap().take() {
+        let _ = w.flush();
+    }
+}
+
+/// Write a line to the current output target (real stdout, or a spawned
+/// pager's stdin — see `OUTPUT`), exiting quietly (code 0) on a broken
+/// pipe (e.g. `colorls | head`, or a pager the user quit early) instead of
+/// panicking the way a bare `println!` would. Any other write failure is
+/// reported and exits with a failure code.
 pub fn safe_println(s: &str) {
+    let mut guard = OUTPUT.lock().unwrap();
+    if let Some(w) = guard.as_mut() {
+        if let Err(e) = writeln!(w, "{}", s) {
+            drop(guard);
+            report_write_error(e);
+        }
+        return;
+    }
+    drop(guard);
+
     let stdout = std::io::stdout();
     let mut lock = stdout.lock();
     if let Err(e) = writeln!(lock, "{}", s) {
-        if e.kind() == std::io::ErrorKind::BrokenPipe {
-            std::process::exit(0);
-        }
-        eprintln!("{}: error writing output: {}", PROG_NAME.as_str(), e);
-        std::process::exit(1);
+        report_write_error(e);
     }
+}
+
+fn report_write_error(e: std::io::Error) -> ! {
+    if e.kind() == std::io::ErrorKind::BrokenPipe {
+        std::process::exit(0);
+    }
+    eprintln!("{}: error writing output: {}", PROG_NAME.as_str(), e);
+    std::process::exit(1);
 }
 
 #[macro_export]
